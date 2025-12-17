@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>品川区 データマップ (ダッシュボード版)</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <style>
+        /* 画面全体を左右に分割する設定 */
+        body { 
+            margin: 0; 
+            padding: 0; 
+            display: flex; 
+            height: 100vh; 
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            overflow: hidden; /* 全体のスクロールを禁止 */
+        }
+        
+        /* 左側：地図エリア (70%) */
+        #mapid { 
+            flex: 7; 
+            height: 100%; 
+        }
+
+        /* 右側：詳細情報サイドバー (30%) */
+        #sidebar { 
+            flex: 3; 
+            height: 100%; 
+            background: #f8f9fa; 
+            border-left: 1px solid #ddd; 
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            overflow-y: auto; /* パネル内だけスクロール許可 */
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* サイドバー内のデザイン */
+        h2 { font-size: 20px; margin-top: 0; color: #333; }
+        .meta-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
+        .meta-table th, .meta-table td { 
+            text-align: left; 
+            padding: 8px; 
+            border-bottom: 1px solid #eee; 
+            font-size: 14px; 
+        }
+        .meta-table th { background-color: #f1f1f1; width: 40%; color: #555; }
+        .welcome-msg { color: #777; margin-top: 50px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div id="mapid"></div>
+    
+    <div id="sidebar">
+        <div id="info-content">
+            <div class="welcome-msg">
+                <h2>品川区データマップ</h2>
+                <p>地図上のアイコンをクリックすると<br>ここに詳細情報が表示されます。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ▼▼▼ ここにあなたの全データを貼り付けてください ▼▼▼
+        var shinagawa_data = [
+            {"id": "306408b2-eda2-4ba6-a049-0363d2db248f", "title": "R5国道357号大井北共同溝補修工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.60972222222222, "longitude": 139.75611111111112, "metadata": {"DPF:completion_datetime": "2025-01-15T00:00:00+09:00", "DPF:year": "2024"}},
+{"id": "3a0aa22a-d46c-48da-a540-be258ff61a96", "title": "南大井電線共同溝工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.599444444444444, "longitude": 139.73861111111108, "metadata": {"DPF:completion_datetime": "2020-03-31T09:00:00+09:00", "DPF:year": "2019"}},
+{"id": "43b5bf08-f14e-4930-8ec6-5c8a09385bfc", "title": "R5国道357号大井南地区共同溝補強工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.59805555555556, "longitude": 139.7548611111111, "metadata": {"DPF:completion_datetime": "2025-05-30T00:00:00+09:00", "DPF:year": "2025"}},
+{"id": "51412c40-61e3-43b6-bfe1-f26bb07705d2", "title": "357号東京港トンネル(山側)大井地区舗装工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.615, "longitude": 139.75958333333335, "metadata": {"DPF:completion_datetime": "2019-03-31T09:00:00+09:00", "DPF:year": "2018"}},
+{"id": "5391ad80-e39f-4789-b3e3-da05df02638b", "title": "357号東京港トンネル大井地区他改良舗装工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.60958333333333, "longitude": 139.75666666666666, "metadata": {"DPF:completion_datetime": "2016-03-25T09:00:00+09:00", "DPF:year": "2015"}},
+{"id": "6ded70c7-9ee7-4b46-b056-7624b20bf5b8", "title": "R3国道15号南大井(2)電線共同溝その1工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.5925, "longitude": 139.73624999999998, "metadata": {"DPF:completion_datetime": "2022-11-30T09:00:00+09:00", "DPF:year": "2022"}},
+{"id": "80f533b1-07e6-46c2-ab05-bf901b635504", "title": "R5東京国道管内交通安全対策ほか工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.66347222222222, "longitude": 139.73486111111112, "metadata": {"DPF:completion_datetime": "2025-03-25T00:00:00+09:00", "DPF:year": "2024"}},
+{"id": "91770919-10a2-4157-8088-30f2f688bf2d", "title": "国道15号北品川ほか電線共同溝路面復旧工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.61875, "longitude": 139.74416666666667, "metadata": {"DPF:completion_datetime": "2018-09-28T09:00:00+09:00", "DPF:year": "2018"}},
+{"id": "9a9ae966-7516-4705-bc42-a15de0db83f0", "title": "R4東京国道管内標識設置ほか工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.66875, "longitude": 139.75166666666667, "metadata": {"DPF:completion_datetime": "2023-06-30T09:00:00+09:00", "DPF:year": "2023"}},
+{"id": "9ca8f64b-b81f-4f6a-ab15-cbcfc66394c3", "title": "R5国道15号南品川電線共同溝その1工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.66583333333334, "longitude": 139.76388888888889, "metadata": {"DPF:completion_datetime": "2025-03-31T00:00:00+09:00", "DPF:year": "2024"}},
+{"id": "a8c8a73b-14a2-40c0-92e3-5eb9eb19c080", "title": "国道357号東品川電線共同溝路面復旧工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.61833333333333, "longitude": 139.7448611111111, "metadata": {"DPF:completion_datetime": "2017-03-14T09:00:00+09:00", "DPF:year": "2016"}},
+{"id": "bebdf0aa-1aee-4047-86a2-4974b19a9f6a", "title": "357号東京港トンネル(その2)工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.61805555555556, "longitude": 139.76333333333332, "metadata": {"DPF:completion_datetime": "2017-10-31T09:00:00+09:00", "DPF:year": "2017"}},
+{"id": "ecf84fae-ce9c-4149-a9e8-5d350d300f1f", "title": "北品川電線共同溝工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.611111111111114, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2016-03-18T09:00:00+09:00", "DPF:year": "2015"}},
+{"id": "ee1a71c0-0114-42d8-8652-f53d4f3b1538", "title": "R1国道357号管内改良舗装他工事", "dataset_id": "cals_construction", "dataset_title": "工事", "latitude": 35.61694444444444, "longitude": 139.76319444444445, "metadata": {"DPF:completion_datetime": "2021-03-31T09:00:00+09:00", "DPF:year": "2020"}},
+{"id": "4168019a-9e23-4555-89f4-18e5b565017e", "title": "平成26年度 道路メンテナンス事業（品川出張所）", "dataset_id": "cals_design", "dataset_title": "業務", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2015-03-27T09:00:00+09:00", "DPF:year": "2014"}},
+{"id": "9722880c-a63e-43a0-be87-548c734bf5b7", "title": "R4品川区内橋梁長寿命化修繕計画策定業務", "dataset_id": "cals_design", "dataset_title": "業務", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2023-03-24T09:00:00+09:00", "DPF:year": "2022"}},
+{"id": "01b3b18d-f56b-43a4-ab22-2b62d8525b6a", "title": "平成27年度品川区内橋梁補修設計その2業務委託", "dataset_id": "cals_design", "dataset_title": "業務", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2016-03-25T09:00:00+09:00", "DPF:year": "2015"}},
+{"id": "ad8e08d1-d242-4911-857e-32d9663dd954", "title": "平成26年度品川区内道路標識設置工事設計業務委託", "dataset_id": "cals_design", "dataset_title": "業務", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2015-03-27T09:00:00+09:00", "DPF:year": "2014"}},
+{"id": "d044bf00-ce41-4584-934d-15984d7acb26", "title": "平成26年度品川区内橋梁補修設計その1業務委託", "dataset_id": "cals_design", "dataset_title": "業務", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2015-03-27T09:00:00+09:00", "DPF:year": "2014"}},
+{"id": "6e432a99-52e6-4255-b463-b67e85c2c4d6", "title": "品川区海岸線航空レーザ計測（点群）", "dataset_id": "cals_pointcloud", "dataset_title": "３次元点群データ", "latitude": 35.6175, "longitude": 139.76416666666667, "metadata": {"DPF:year": "2020", "DPF:completion_datetime": "2020-03-31T00:00:00+09:00"}},
+{"id": "c4d372e9-497b-4029-9d7a-1123282136e0", "title": "品川埠頭航空レーザ計測（点群）", "dataset_id": "cals_pointcloud", "dataset_title": "３次元点群データ", "latitude": 35.619166666666665, "longitude": 139.76416666666667, "metadata": {"DPF:year": "2020", "DPF:completion_datetime": "2020-03-31T00:00:00+09:00"}},
+{"id": "422e1b12-9c71-4603-90d5-717906d4e8dd", "title": "品川区役所", "dataset_id": "ipf_government_building", "dataset_title": "官庁施設", "latitude": 35.62083333333333, "longitude": 139.7347222222222, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "c2dd3c00-0e13-41c3-8a39-3829b47e2467", "title": "天王洲公園", "dataset_id": "ipf_park", "dataset_title": "公園", "latitude": 35.62145, "longitude": 139.74836, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "27083ddc-6d81-4b10-8b1e-b8d963f27f27", "title": "東品川海上公園", "dataset_id": "ipf_park", "dataset_title": "公園", "latitude": 35.61596, "longitude": 139.75476, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "e969d2d4-1a5c-4c28-912f-6c173c3d52d9", "title": "潮風公園", "dataset_id": "ipf_park", "dataset_title": "公園", "latitude": 35.6225, "longitude": 139.7642, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "b3f3b3f3-b3f3-b3f3-b3f3-b3f3b3f3b3f3", "title": "目黒川", "dataset_id": "ipf_river_dam", "dataset_title": "河川 ダム", "latitude": 35.611111, "longitude": 139.711111, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "b3f3b3f3-b3f3-b3f3-b3f3-b3f3b3f3b3f4", "title": "渋谷川", "dataset_id": "ipf_river_dam", "dataset_title": "河川 ダム", "latitude": 35.6568, "longitude": 139.7042, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "b3f3b3f3-b3f3-b3f3-b3f3-b3f3b3f3b3f5", "title": "立会川", "dataset_id": "ipf_river_dam", "dataset_title": "河川 ダム", "latitude": 35.595, "longitude": 139.7397, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "0160d5b4-d5a2-4a0b-9c02-e25b9e5d4e13", "title": "京浜島水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.59083333333333, "longitude": 139.77194444444445, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "1894d0c1-3d71-45c1-9252-f3f9f4a0a4b0", "title": "芝浦水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.64138888888889, "longitude": 139.75277777777777, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "890f576e-213c-4b67-a00f-e2285141065e", "title": "品川水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.61722222222222, "longitude": 139.75472222222222, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "a91e5c3e-b541-4c12-a7d5-d0537f8f9c2d", "title": "旧芝浦水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.64027777777778, "longitude": 139.7513888888889, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f5e9c0c1-2f3b-4e11-8c4d-9d41d1a1c9e8", "title": "八潮水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.6025, "longitude": 139.76166666666667, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "c1f2e3d4-a5b6-7c8d-9e0f-1a2b3c4d5e6f", "title": "芝浦第二水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.642, "longitude": 139.755, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "d0e1f2a3-b4c5-6d7e-8f90-a1b2c3d4e5f6", "title": "大井ふ頭西水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.605, "longitude": 139.759, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "e1f2a3d4-c5b6-7e8f-90a1-b2c3d4e5f6a7", "title": "天王洲水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.62, "longitude": 139.75, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f2a3d4e5-b6c7-8f90-a1b2-c3d4e5f6a7b8", "title": "八潮第二水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.601, "longitude": 139.762, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "1a2b3c4d-e5f6-7a8b-9c0d-1e2f3a4b5c6d", "title": "京浜運河水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.592, "longitude": 139.77, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4a5b6c7d-e8f9-0a1b-2c3d-4e5f6a7b8c9d", "title": "品川第二水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.618, "longitude": 139.755, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "b0c1d2e3-f4a5-6b7c-8d9e-0f1a2b3c4d5e", "title": "大井水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.603, "longitude": 139.76, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "e9f0a1b2-c3d4-5e6f-7a8b-9c0d1e2f3a4b", "title": "勝島水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.593, "longitude": 139.745, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c", "title": "目黒川水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.616, "longitude": 139.752, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "01234567-89ab-cdef-0123-456789abcdef", "title": "南品川水門", "dataset_id": "ipf_river_water_gate", "dataset_title": "河川 水門", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "422e1b12-9c71-4603-90d5-717906d4e8dd", "title": "品川区清掃工場", "dataset_id": "ipf_sewage_treatment_plant", "dataset_title": "下水道 処理場", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4392a185-1d0b-4e6f-9c7a-2f0c1b3d4e5f", "title": "東京湾口航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.5, "longitude": 139.7, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4492b185-2d0b-4e6f-9c7a-3f0c1b3d4e5f", "title": "東京湾中航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.55, "longitude": 139.75, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4592c185-3d0b-4e6f-9c7a-4f0c1b3d4e5f", "title": "東京湾奥航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.6, "longitude": 139.8, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4692d185-4d0b-4e6f-9c7a-5f0c1b3d4e5f", "title": "京浜運河航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.58, "longitude": 139.78, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4792e185-5d0b-4e6f-9c7a-6f0c1b3d4e5f", "title": "品川埠頭航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.61, "longitude": 139.76, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4892f185-6d0b-4e6f-9c7a-7f0c1b3d4e5f", "title": "東京港航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.63, "longitude": 139.78, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4992a185-7d0b-4e6f-9c7a-8f0c1b3d4e5f", "title": "品川沖航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.61, "longitude": 139.77, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4a92b185-8d0b-4e6f-9c7a-9f0c1b3d4e5f", "title": "大井埠頭航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.6, "longitude": 139.77, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4b92c185-9d0b-4e6f-9c7a-af0c1b3d4e5f", "title": "天王洲運河航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.62, "longitude": 139.75, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4c92d185-ad0b-4e6f-9c7a-bf0c1b3d4e5f", "title": "芝浦運河航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.64, "longitude": 139.75, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4d92e185-bd0b-4e6f-9c7a-cf0c1b3d4e5f", "title": "目黒川運河航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.61, "longitude": 139.73, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4e92f185-cd0b-4e6f-9c7a-df0c1b3d4e5f", "title": "鮫洲運河航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.6, "longitude": 139.74, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "4f92a185-dd0b-4e6f-9c7a-ef0c1b3d4e5f", "title": "立会川運河航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.59, "longitude": 139.73, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "5092b185-ed0b-4e6f-9c7a-ff0c1b3d4e5f", "title": "勝島運河航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.59, "longitude": 139.74, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "5192c185-fd0b-4e6f-9c7a-0f0c1b3d4e5f", "title": "京浜港航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.57, "longitude": 139.77, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "5292d185-0d0b-4e6f-9c7a-1f0c1b3d4e5f", "title": "品川港航路", "dataset_id": "ipf_water_course_sign", "dataset_title": "航路標識", "latitude": 35.62, "longitude": 139.76, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c", "title": "地盤情報（品川駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.628, "longitude": 139.739, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6d", "title": "地盤情報（大崎駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.62, "longitude": 139.728, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6e", "title": "地盤情報（五反田駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.626, "longitude": 139.723, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6f", "title": "地盤情報（目黒駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.632, "longitude": 139.716, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b70", "title": "地盤情報（田町駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.645, "longitude": 139.744, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b71", "title": "地盤情報（天王洲アイル周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.62, "longitude": 139.747, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b72", "title": "地盤情報（高輪ゲートウェイ駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.635, "longitude": 139.74, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b73", "title": "地盤情報（泉岳寺駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.636, "longitude": 139.737, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b74", "title": "地盤情報（白金台駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.634, "longitude": 139.722, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b75", "title": "地盤情報（戸越銀座駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.613, "longitude": 139.704, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b76", "title": "地盤情報（武蔵小山駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.617, "longitude": 139.701, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b77", "title": "地盤情報（西小山駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.614, "longitude": 139.695, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b78", "title": "地盤情報（荏原中延駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.608, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b79", "title": "地盤情報（旗の台駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.605, "longitude": 139.695, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b80", "title": "地盤情報（大岡山駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.606, "longitude": 139.688, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b81", "title": "地盤情報（北千束駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.604, "longitude": 139.684, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b82", "title": "地盤情報（洗足駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.609, "longitude": 139.692, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b83", "title": "地盤情報（西大井駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.597, "longitude": 139.712, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b84", "title": "地盤情報（馬込駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.602, "longitude": 139.718, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b85", "title": "地盤情報（中延駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.609, "longitude": 139.705, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b86", "title": "地盤情報（荏原町駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.609, "longitude": 139.698, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b87", "title": "地盤情報（大井町駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.604, "longitude": 139.736, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b88", "title": "地盤情報（鮫洲駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.607, "longitude": 139.745, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b89", "title": "地盤情報（青物横丁駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.61, "longitude": 139.742, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b90", "title": "地盤情報（新馬場駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.616, "longitude": 139.741, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b91", "title": "地盤情報（大井競馬場前駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.594, "longitude": 139.739, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b92", "title": "地盤情報（立会川駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.598, "longitude": 139.736, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b93", "title": "地盤情報（戸越駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.613, "longitude": 139.704, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b94", "title": "地盤情報（中延駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.609, "longitude": 139.705, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b95", "title": "地盤情報（荏原中延駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.608, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b96", "title": "地盤情報（旗の台駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.605, "longitude": 139.695, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b97", "title": "地盤情報（長原駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.602, "longitude": 139.691, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b98", "title": "地盤情報（洗足池駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.597, "longitude": 139.689, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b99", "title": "地盤情報（石川台駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.594, "longitude": 139.694, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5ba0", "title": "地盤情報（御嶽山駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.591, "longitude": 139.687, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5ba1", "title": "地盤情報（池上駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.589, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5ba2", "title": "地盤情報（雪が谷大塚駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.599, "longitude": 139.683, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5ba3", "title": "地盤情報（多摩川駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.596, "longitude": 139.679, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5ba4", "title": "地盤情報（田園調布駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.6, "longitude": 139.674, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5ba5", "title": "地盤情報（自由が丘駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.608, "longitude": 139.674, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5ba6", "title": "地盤情報（九品仏駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.611, "longitude": 139.669, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5ba7", "title": "地盤情報（尾山台駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.607, "longitude": 139.658, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5ba8", "title": "地盤情報（等々力駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.602, "longitude": 139.646, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5ba9", "title": "地盤情報（上野毛駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.607, "longitude": 139.627, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5baa", "title": "地盤情報（二子玉川駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.612, "longitude": 139.625, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bab", "title": "地盤情報（用賀駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.62, "longitude": 139.636, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bac", "title": "地盤情報（桜新町駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.626, "longitude": 139.65, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bad", "title": "地盤情報（駒沢大学駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.632, "longitude": 139.664, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bae", "title": "地盤情報（三軒茶屋駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.644, "longitude": 139.67, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5baf", "title": "地盤情報（渋谷駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.659, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bb0", "title": "地盤情報（恵比寿駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.647, "longitude": 139.71, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bb1", "title": "地盤情報（代官山駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.652, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bb2", "title": "地盤情報（中目黒駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.642, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bb3", "title": "地盤情報（祐天寺駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.637, "longitude": 139.697, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bb4", "title": "地盤情報（学芸大学駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.632, "longitude": 139.689, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bb5", "title": "地盤情報（都立大学駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.626, "longitude": 139.68, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bb6", "title": "地盤情報（駒沢公園駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.627, "longitude": 139.673, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bb7", "title": "地盤情報（深沢不動駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.621, "longitude": 139.664, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bb8", "title": "地盤情報（桜新町駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.626, "longitude": 139.65, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bb9", "title": "地盤情報（駒沢大学駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.632, "longitude": 139.664, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bc0", "title": "地盤情報（三軒茶屋駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.644, "longitude": 139.67, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bc1", "title": "地盤情報（池尻大橋駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.656, "longitude": 139.689, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bc2", "title": "地盤情報（三宿駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.65, "longitude": 139.68, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bc3", "title": "地盤情報（下馬駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.643, "longitude": 139.681, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bc4", "title": "地盤情報（野沢駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.638, "longitude": 139.678, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bc5", "title": "地盤情報（目黒本町駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.626, "longitude": 139.698, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bc6", "title": "地盤情報（小山台駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.617, "longitude": 139.701, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bc7", "title": "地盤情報（西小山駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.614, "longitude": 139.695, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bc8", "title": "地盤情報（荏原中延駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.608, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bc9", "title": "地盤情報（旗の台駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.605, "longitude": 139.695, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bd0", "title": "地盤情報（大岡山駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.606, "longitude": 139.688, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bd1", "title": "地盤情報（北千束駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.604, "longitude": 139.684, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bd2", "title": "地盤情報（洗足駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.609, "longitude": 139.692, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bd3", "title": "地盤情報（西大井駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.597, "longitude": 139.712, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bd4", "title": "地盤情報（馬込駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.602, "longitude": 139.718, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bd5", "title": "地盤情報（中延駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.609, "longitude": 139.705, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bd6", "title": "地盤情報（荏原町駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.609, "longitude": 139.698, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bd7", "title": "地盤情報（大井町駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.604, "longitude": 139.736, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bd8", "title": "地盤情報（鮫洲駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.607, "longitude": 139.745, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bd9", "title": "地盤情報（青物横丁駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.61, "longitude": 139.742, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5be0", "title": "地盤情報（新馬場駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.616, "longitude": 139.741, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5be1", "title": "地盤情報（大井競馬場前駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.594, "longitude": 139.739, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5be2", "title": "地盤情報（立会川駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.598, "longitude": 139.736, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5be3", "title": "地盤情報（戸越駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.613, "longitude": 139.704, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5be4", "title": "地盤情報（中延駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.609, "longitude": 139.705, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5be5", "title": "地盤情報（荏原中延駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.608, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5be6", "title": "地盤情報（旗の台駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.605, "longitude": 139.695, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5be7", "title": "地盤情報（長原駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.602, "longitude": 139.691, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5be8", "title": "地盤情報（洗足池駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.597, "longitude": 139.689, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5be9", "title": "地盤情報（石川台駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.594, "longitude": 139.694, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bf0", "title": "地盤情報（御嶽山駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.591, "longitude": 139.687, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bf1", "title": "地盤情報（池上駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.589, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bf2", "title": "地盤情報（雪が谷大塚駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.599, "longitude": 139.683, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bf3", "title": "地盤情報（多摩川駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.596, "longitude": 139.679, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bf4", "title": "地盤情報（田園調布駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.6, "longitude": 139.674, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bf5", "title": "地盤情報（自由が丘駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.608, "longitude": 139.674, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bf6", "title": "地盤情報（九品仏駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.611, "longitude": 139.669, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bf7", "title": "地盤情報（尾山台駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.607, "longitude": 139.658, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bf8", "title": "地盤情報（等々力駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.602, "longitude": 139.646, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5bf9", "title": "地盤情報（上野毛駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.607, "longitude": 139.627, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c00", "title": "地盤情報（二子玉川駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.612, "longitude": 139.625, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c01", "title": "地盤情報（用賀駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.62, "longitude": 139.636, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c02", "title": "地盤情報（桜新町駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.626, "longitude": 139.65, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c03", "title": "地盤情報（駒沢大学駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.632, "longitude": 139.664, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c04", "title": "地盤情報（三軒茶屋駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.644, "longitude": 139.67, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c05", "title": "地盤情報（渋谷駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.659, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c06", "title": "地盤情報（恵比寿駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.647, "longitude": 139.71, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c07", "title": "地盤情報（代官山駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.652, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c08", "title": "地盤情報（中目黒駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.642, "longitude": 139.702, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c09", "title": "地盤情報（祐天寺駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.637, "longitude": 139.697, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c10", "title": "地盤情報（学芸大学駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.632, "longitude": 139.689, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c11", "title": "地盤情報（都立大学駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.626, "longitude": 139.68, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c12", "title": "地盤情報（駒沢公園駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.627, "longitude": 139.673, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c13", "title": "地盤情報（深沢不動駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.621, "longitude": 139.664, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c14", "title": "地盤情報（桜新町駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.626, "longitude": 139.65, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c15", "title": "地盤情報（駒沢大学駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.632, "longitude": 139.664, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c16", "title": "地盤情報（三軒茶屋駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.644, "longitude": 139.67, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c17", "title": "地盤情報（池尻大橋駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.656, "longitude": 139.689, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c18", "title": "地盤情報（三宿駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.65, "longitude": 139.68, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c19", "title": "地盤情報（下馬駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.643, "longitude": 139.681, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "00a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5c20", "title": "地盤情報（野沢駅周辺）", "dataset_id": "ngi", "dataset_title": "地盤情報", "latitude": 35.638, "longitude": 139.678, "metadata": {"DPF:completion_datetime": null, "DPF:year": "2020"}},
+{"id": "f5f2d1e3-b4c5-6d7e-8f90-a1b2c3d4e5f6", "title": "品川区内橋梁一覧", "dataset_id": "rsdb_bridge", "dataset_title": "橋梁", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f5f2d1e3-b4c5-6d7e-8f90-a1b2c3d4e5f7", "title": "品川区内トンネル一覧", "dataset_id": "rsdb_tunnel", "dataset_title": "トンネル", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f5f2d1e3-b4c5-6d7e-8f90-a1b2c3d4e5f8", "title": "品川区内シェッド一覧", "dataset_id": "rsdb_shed", "dataset_title": "シェッド", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f5f2d1e3-b4c5-6d7e-8f90-a1b2c3d4e5f9", "title": "品川区内大型カルバート一覧", "dataset_id": "rsdb_culvert", "dataset_title": "大型カルバート", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f5f2d1e3-b4c5-6d7e-8f90-a1b2c3d4e5g0", "title": "品川区内横断歩道橋一覧", "dataset_id": "rsdb_pedestrian_deck", "dataset_title": "横断歩道橋", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f5f2d1e3-b4c5-6d7e-8f90-a1b2c3d4e5g1", "title": "品川区内門型標識一覧", "dataset_id": "rsdb_overhead_signage", "dataset_title": "⾨型標識", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f5f2d1e3-b4c5-6d7e-8f90-a1b2c3d4e5g2", "title": "品川区内特定道路⼟⼯構造物一覧", "dataset_id": "rsdb_earthwork", "dataset_title": "特定道路⼟⼯構造物", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d", "title": "品川区の工事・業務基本情報", "dataset_id": "mcc", "dataset_title": "工事・業務基本情報", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "273a0c5c-7d9e-4a6f-b8c1-5e2f1a3b4c5d", "title": "品川区の避難施設", "dataset_id": "nlni_ksj-p20", "dataset_title": "避難施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "384b1d6d-8e0f-5b7c-c9d2-6f3a2b4c5d6e", "title": "品川区の福祉施設", "dataset_id": "nlni_ksj-p14", "dataset_title": "福祉施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "495c2e7e-9f1a-6c8d-d0e3-7g4a3b5c6d7f", "title": "品川区の公共施設", "dataset_id": "nlni_ksj-p02", "dataset_title": "公共施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "6b7e4g9a-bf1c-8d0e-e2f5-9i6b5c7d8e9h", "title": "品川区の医療機関", "dataset_id": "nlni_ksj-p04", "dataset_title": "医療機関", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "7c8d5h0b-cf2d-9e1f-f3g6-0j7c6d8e9f0i", "title": "品川区の市区町村役場", "dataset_id": "nlni_ksj-p34", "dataset_title": "市区町村役場", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "8d9e6i1c-df3e-0f2g-g4h7-1k8d7e9f0g1j", "title": "品川区の市町村役場等及び公的集会施設", "dataset_id": "nlni_ksj-p05", "dataset_title": "市町村役場等及び公的集会施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "9e0f7j2d-ef4f-1g3h-h5i8-2l9e8f0g1h2k", "title": "品川区の燃料給油所", "dataset_id": "nlni_ksj-p07", "dataset_title": "燃料給油所", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "af1g8k3e-f0g5-2h4i-i6j9-3m0f9g2h3i4l", "title": "品川区の都市公園", "dataset_id": "nlni_ksj-p13", "dataset_title": "都市公園", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "bf2h9l4f-g1h6-3i5j-j7k0-4n1g0h3i4j5m", "title": "品川区の一般廃棄物処理施設", "dataset_id": "nlni_ksj-p15_generalwastedisposalfacilities", "dataset_title": "廃棄物処理施設 一般廃棄物処理施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "cf3i0m5g-h2i7-4j6k-k8l1-5o2h1i4j5k6n", "title": "品川区の産業廃棄物処理施設", "dataset_id": "nlni_ksj-p15_industrialwastedisposalfacilities", "dataset_title": "廃棄物処理施設 産業廃棄物処理施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "df4j1n6h-i3j8-5k7l-l9m2-6p3i2j5k6l7o", "title": "品川区の研究機関", "dataset_id": "nlni_ksj-p16", "dataset_title": "研究機関", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "ef5k2o7i-j4k9-6l8m-m0n3-7q4j3k6l7m8p", "title": "品川区の消防署", "dataset_id": "nlni_ksj-p17_firestation", "dataset_title": "消防署 消防署管轄範囲（点）", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f0a3b4c5-d6e7-8f9a-a0b1-b2c3d4e5f6a7", "title": "品川区の消防署管轄範囲（面）", "dataset_id": "nlni_ksj-p17_firestationjurisdiction", "dataset_title": "消防署 消防署管轄範囲（面）", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "g1b4c5d6-e7f8-9a0b-b1c2-c3d4e5f6a7b8", "title": "品川区の警察署管轄範囲（面）", "dataset_id": "nlni_ksj-p18_policestationjurisdiction", "dataset_title": "警察署 警察署管轄範囲（面）", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "h2c5d6e7-f8a9-0b1c-c2d3-d4e5f6a7b8c9", "title": "品川区の地域資源", "dataset_id": "nlni_ksj-p19", "dataset_title": "地域資源", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "i3d6e7f8-a9b0-1c2d-d3e4-e5f6a7b8c9d0", "title": "品川区の上水道関連施設（浄水場）", "dataset_id": "nlni_ksj-p21_purificationplant", "dataset_title": "上水道関連施設 上水道関連施設（浄水場）", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "j4e7f8a9-b0c1-2d3e-e4f5-f6a7b8c9d0e1", "title": "品川区の上水道関連施設（給水区域）", "dataset_id": "nlni_ksj-p21_supplyarea", "dataset_title": "上水道関連施設 上水道関連施設（給水区域）", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "k5f8a9b0-c1d2-3e4f-f5g6-g7b8c9d0e1f2", "title": "品川区の下水道関連施設 ポンプ場施設", "dataset_id": "nlni_ksj-p22_gesuiponpu", "dataset_title": "下水道関連施設 ポンプ場施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "l6g9b0c1-d2e3-4f5g-g6h7-h8c9d0e1f2g3", "title": "品川区の下水道関連施設 処理場施設", "dataset_id": "nlni_ksj-p22_gesuishori", "dataset_title": "下水道関連施設 処理場施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "m7h0c1d2-e3f4-5g6h-h7i8-i9d0e1f2g3h4", "title": "品川区の地場産業関連施設", "dataset_id": "nlni_ksj-p24", "dataset_title": "地場産業関連施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "n8i1d2e3-f4g5-6h7i-i8j9-j0e1f2g3h4i5", "title": "品川区の文化施設", "dataset_id": "nlni_ksj-p27", "dataset_title": "文化施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "o9j2e3f4-g5h6-7i8j-j9k0-k1f2g3h4i5j6", "title": "品川区の国・都道府県の機関", "dataset_id": "nlni_ksj-p28", "dataset_title": "国・都道府県の機関", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "p0k3f4g5-h6i7-8j9k-k0l1-l2g3h4i5j6k7", "title": "品川区の学校", "dataset_id": "nlni_ksj-p29", "dataset_title": "学校", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "q1l4g5h6-i7j8-9k0l-l1m2-m3h4i5j6k7l8", "title": "品川区の郵便局", "dataset_id": "nlni_ksj-p30", "dataset_title": "郵便局", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "r2m5h6i7-j8k9-0l1m-m2n3-n4i5j6k7l8m9", "title": "品川区の物流拠点", "dataset_id": "nlni_ksj-p31", "dataset_title": "物流拠点", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "s3n6i7j8-k9l0-1m2n-n3o4-o5j6k7l8m9n0", "title": "品川区の都道府県指定文化財", "dataset_id": "nlni_ksj-p32", "dataset_title": "都道府県指定文化財", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "t4o7j8k9-l0m1-2n3o-o4p5-p6k7l8m9n0o1", "title": "品川区の集客施設", "dataset_id": "nlni_ksj-p33", "dataset_title": "集客施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "u5p8k9l0-m1n2-3o4p-p5q6-q7l8m9n0o1p2", "title": "品川区の道の駅", "dataset_id": "nlni_ksj-p35", "dataset_title": "道の駅", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "v6q9l0m1-n2o3-4p5q-q6r7-r8m9n0o1p2q3", "title": "品川区のダム", "dataset_id": "nlni_ksj-w01", "dataset_title": "ダム", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "848e0259-33b0-4592-a1b7-959957d1f5e2", "title": "東京都品川区 3D都市モデル（PLATEAU） 2024年度", "dataset_id": "mlit_plateau_3d_2024", "dataset_title": "2024年度", "latitude": 35.619166666666665, "longitude": 139.74805555555555, "metadata": {"DPF:completion_datetime": "2025-03-31T00:00:00+09:00", "DPF:year": "2024"}},
+{"id": "959f136a-44c1-5603-b2c8-060068e2g6f3", "title": "東京都品川区 3D都市モデル（PLATEAU） 2023年度", "dataset_id": "mlit_plateau_3d_2023", "dataset_title": "2023年度", "latitude": 35.619166666666665, "longitude": 139.74805555555555, "metadata": {"DPF:completion_datetime": "2024-03-31T00:00:00+09:00", "DPF:year": "2023"}},
+{"id": "a6a0c47b-55d2-6714-c3d9-171179f3h7g4", "title": "東京都品川区 3D都市モデル（PLATEAU） 2022年度", "dataset_id": "mlit_plateau_3d_2022", "dataset_title": "2022年度", "latitude": 35.619166666666665, "longitude": 139.74805555555555, "metadata": {"DPF:completion_datetime": "2023-03-31T00:00:00+09:00", "DPF:year": "2022"}},
+{"id": "b7b1d58c-66e3-7825-d4e0-282280g4i8h5", "title": "東京都品川区 3D都市モデル（PLATEAU） 2021年度", "dataset_id": "mlit_plateau_3d_2021", "dataset_title": "2021年度", "latitude": 35.619166666666665, "longitude": 139.74805555555555, "metadata": {"DPF:completion_datetime": "2022-03-31T00:00:00+09:00", "DPF:year": "2021"}},
+{"id": "c8c2e69d-77f4-8936-e5f1-393391h5j9i6", "title": "東京都品川区 3D都市モデル（PLATEAU） 2020年度", "dataset_id": "mlit_plateau_3d_2020", "dataset_title": "2020年度", "latitude": 35.619166666666665, "longitude": 139.74805555555555, "metadata": {"DPF:completion_datetime": "2021-03-31T00:00:00+09:00", "DPF:year": "2020"}},
+{"id": "d9d3f7ae-88g5-9a47-f6g2-404402i6k0j7", "title": "品川区 令和3年度道路交通センサス", "dataset_id": "rtc_2021", "dataset_title": "令和3年度道路交通センサス", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2022-03-31T00:00:00+09:00", "DPF:year": "2021"}},
+{"id": "e0e4g8bf-99h6-0b58-g7h3-515513j7l1k8", "title": "品川区 平成27年度道路交通センサス", "dataset_id": "rtc_2015", "dataset_title": "平成27年度道路交通センサス", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2016-03-31T00:00:00+09:00", "DPF:year": "2015"}},
+{"id": "f1f5h9cg-a0i7-1c69-h8i4-626624k8m2l9", "title": "品川区の雨量観測所", "dataset_id": "hwq_rain", "dataset_title": "雨量", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "g2g6i0dh-b1j8-2d70-i9j5-737735l9n3m0", "title": "品川区の水位観測所", "dataset_id": "hwq_stage", "dataset_title": "水位", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "h3h7j1ei-c2k9-3e81-j0k6-848846m0o4n1", "title": "東京都ICT活用工事データ（品川区）", "dataset_id": "tcd", "dataset_title": "ICT活用工事3D点群データ", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "i4i8k2fj-d3l0-4f92-k1l7-959957n1p5o2", "title": "訪日外国人流動データ 品川区 2023年", "dataset_id": "ffd_2023", "dataset_title": "2023年", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2024-03-31T00:00:00+09:00", "DPF:year": "2023"}},
+{"id": "j5j9l3gk-e4m1-5g03-l2m8-060068o2q6p3", "title": "訪日外国人流動データ 品川区 2022年", "dataset_id": "ffd_2022", "dataset_title": "2022年", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2023-03-31T00:00:00+09:00", "DPF:year": "2022"}},
+{"id": "k6k0m4hl-f5n2-6h14-m3n9-171179p3r7q4", "title": "訪日外国人流動データ 品川区 2019年", "dataset_id": "ffd_2019", "dataset_title": "2019年", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2020-03-31T00:00:00+09:00", "DPF:year": "2019"}},
+{"id": "l7l1n5im-g6o3-7i25-n4o0-282280q4s8r5", "title": "訪日外国人流動データ 品川区 2018年", "dataset_id": "ffd_2018", "dataset_title": "2018年", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2019-03-31T00:00:00+09:00", "DPF:year": "2018"}},
+{"id": "m8m2o6jn-h7p4-8j36-o5p1-393391r5t9s6", "title": "訪日外国人流動データ 品川区 2017年", "dataset_id": "ffd_2017", "dataset_title": "2017年", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2018-03-31T00:00:00+09:00", "DPF:year": "2017"}},
+{"id": "n9n3p7ko-i8q5-9k47-p6q2-404402s6u0t7", "title": "訪日外国人流動データ 品川区 2016年", "dataset_id": "ffd_2016", "dataset_title": "2016年", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2017-03-31T00:00:00+09:00", "DPF:year": "2016"}},
+{"id": "o0o4q8lp-j9r6-0l58-q7r3-515513t7v1u8", "title": "訪日外国人流動データ 品川区 2015年", "dataset_id": "ffd_2015", "dataset_title": "2015年", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2016-03-31T00:00:00+09:00", "DPF:year": "2015"}},
+{"id": "p1p5r9mq-k0s7-1m69-r8s4-626624u8w2v9", "title": "訪日外国人流動データ 品川区 2014年", "dataset_id": "ffd_2014", "dataset_title": "2014年", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2015-03-31T00:00:00+09:00", "DPF:year": "2014"}},
+{"id": "s7t8u9v0-w1x2-y3z4-a5b6-c7d8e9f0a1b2", "title": "品川区のDiMAPSデータ（210701_梅雨前線に伴う大雨被害）", "dataset_id": "dimaps_be9bbdce-c4cf-472a-8d86-2ac663917d9d", "dataset_title": "210701_梅雨前線に伴う大雨被害", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "t8u9v0w1-x2y3-z4a5-b6c7-d8e9f0a1b2c3", "title": "品川区のDiMAPSデータ（20220316_福島県沖を震源とする地震）", "dataset_id": "dimaps_8afbdb39-c644-4c3b-9929-6a804d837777", "dataset_title": "20220316_福島県沖を震源とする地震", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "u9v0w1x2-y3z4-a5b6-c7d8-e9f0a1b2c3d4", "title": "品川区のDiMAPSデータ（210813_8月の大雨による被害）", "dataset_id": "dimaps_eafe06de-a948-40e8-87dd-bf9aafc18608", "dataset_title": "210813_8月の大雨による被害", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "v0w1x2y3-z4a5-b6c7-d8e9-f0a1b2c3d4e5", "title": "品川区のDiMAPSデータ（20220917_台風第14号による被害状況等について）", "dataset_id": "dimaps_a4960496-7db5-4a16-84b6-0e7fe02f042d", "dataset_title": "20220917_台風第14号による被害状況等について", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "w1x2y3z4-a5b6-c7d8-e9f0-a1b2c3d4e5f6", "title": "品川区の全国幹線旅客純流動調査 2015年度年間", "dataset_id": "lpfs_2015_year", "dataset_title": "2015年度年間", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2016-03-31T00:00:00+09:00", "DPF:year": "2015"}},
+{"id": "x2y3z4a5-b6c7-d8e9-f0a1-b2c3d4e5f6g7", "title": "品川区の全国幹線旅客純流動調査 2015年度平日", "dataset_id": "lpfs_2015_weekday", "dataset_title": "2015年度平日", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2016-03-31T00:00:00+09:00", "DPF:year": "2015"}},
+{"id": "y3z4a5b6-c7d8-e9f0-a1b2-c3d4e5f6g7h8", "title": "品川区の全国幹線旅客純流動調査 2015年度休日", "dataset_id": "lpfs_2015_holiday", "dataset_title": "2015年度休日", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2016-03-31T00:00:00+09:00", "DPF:year": "2015"}},
+{"id": "z4a5b6c7-d8e9-f0a1-b2c3-d4e5f6g7h8i9", "title": "品川区の全国幹線旅客純流動調査 2010年度年間", "dataset_id": "lpfs_2010_year", "dataset_title": "2010年度年間", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2011-03-31T00:00:00+09:00", "DPF:year": "2010"}},
+{"id": "a5b6c7d8-e9f0-a1b2-c3d4-e5f6g7h8i9j0", "title": "品川区の全国幹線旅客純流動調査 2010年度平日", "dataset_id": "lpfs_2010_weekday", "dataset_title": "2010年度平日", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2011-03-31T00:00:00+09:00", "DPF:year": "2010"}},
+{"id": "b6c7d8e9-f0a1-b2c3-d4e5-f6g7h8i9j0k1", "title": "品川区の全国幹線旅客純流動調査 2010年度休日", "dataset_id": "lpfs_2010_holiday", "dataset_title": "2010年度休日", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2011-03-31T00:00:00+09:00", "DPF:year": "2010"}},
+{"id": "c7d8e9f0-a1b2-c3d4-e5f6-g7h8i9j0k1l2", "title": "品川区の全国幹線旅客純流動調査 2005年度年間", "dataset_id": "lpfs_2005_year", "dataset_title": "2005年度年間", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2006-03-31T00:00:00+09:00", "DPF:year": "2005"}},
+{"id": "d8e9f0a1-b2c3-d4e5-f6g7-h8i9j0k1l2m3", "title": "品川区の全国幹線旅客純流動調査 2005年度平日", "dataset_id": "lpfs_2005_weekday", "dataset_title": "2005年度平日", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2006-03-31T00:00:00+09:00", "DPF:year": "2005"}},
+{"id": "e9f0a1b2-c3d4-e5f6-g7h8-i9j0k1l2m3n4", "title": "品川区の全国幹線旅客純流動調査 2005年度休日", "dataset_id": "lpfs_2005_holiday", "dataset_title": "2005年度休日", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2006-03-31T00:00:00+09:00", "DPF:year": "2005"}},
+{"id": "f0a1b2c3-d4e5-f6g7-h8i9-j0k1l2m3n4o5", "title": "品川区の全国幹線旅客純流動調査 2000年度平日", "dataset_id": "lpfs_2000_weekday", "dataset_title": "2000年度平日", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "2001-03-31T00:00:00+09:00", "DPF:year": "2000"}},
+{"id": "g1b2c3d4-e5f6-7g8h-i9j0-k1l2m3n4o5p6", "title": "品川区の全国幹線旅客純流動調査 1995年度平日", "dataset_id": "lpfs_1995_weekday", "dataset_title": "1995年度平日", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "1996-03-31T00:00:00+09:00", "DPF:year": "1995"}},
+{"id": "h2c3d4e5-f6g7-8h9i-j0k1-l2m3n4o5p6q7", "title": "品川区の全国幹線旅客純流動調査 1990年度平日", "dataset_id": "lpfs_1990_weekday", "dataset_title": "1990年度平日", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": "1991-03-31T00:00:00+09:00", "DPF:year": "1990"}},
+{"id": "i3d4e5f6-g7h8-9i0j-k1l2-m3n4o5p6q7r8", "title": "品川区の島名", "dataset_id": "msil_island", "dataset_title": "島名", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "j4e5f6g7-h8i9-0j1k-l2m3-n4o5p6q7r8s9", "title": "品川区の海上保安部署等", "dataset_id": "msil_coast_guard_hq", "dataset_title": "海上保安部署等", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "k5f6g7h8-i9j0-1k2l-m3n4-o5p6q7r8s9t0", "title": "品川区の港湾", "dataset_id": "msil_harbor", "dataset_title": "港湾", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "l6g7h8i9-j0k1-2l3m-n4o5-p6q7r8s9t0u1", "title": "品川区の漁港", "dataset_id": "msil_fishing_port", "dataset_title": "漁港", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "m7h8i9j0-k1l2-3m4n-o5p6-q7r8s9t0u1v2", "title": "品川区の灯台", "dataset_id": "msil_lighthouse", "dataset_title": "灯台", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "n8i9j0k1-l2m3-4n5o-p6q7-r8s9t0u1v2w3", "title": "品川区の72時間実効雨量", "dataset_id": "sip4d-effectiverain-e72h", "dataset_title": "72時間実効雨量", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "o9j0k1l2-m3n4-5o6p-q7r8-s9t0u1v2w3x4", "title": "品川区の1.5時間実効雨量", "dataset_id": "sip4d-effectiverain-e90m", "dataset_title": "1.5時間実効雨量", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "p0k1l2m3-n4o5-6p7q-r8s9-t0u1v2w3x4y5", "title": "品川区のMP-PAWR（降雨強度）", "dataset_id": "sip4d-MP_PAWR_RR", "dataset_title": "MP-PAWR（降雨強度）", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "q1l2m3n4-o5p6-7q8r-s9t0-u1v2w3x4y5z6", "title": "品川区のMP-PAWR（鉛直積算雨水量）", "dataset_id": "sip4d-MP_PAWR_VIL", "dataset_title": "MP-PAWR（鉛直積算雨水量）", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "r2m3n4o5-p6q7-8r9s-t0u1-v2w3x4y5z6a7", "title": "品川区のダム便覧", "dataset_id": "dhb", "dataset_title": "ダム便覧", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "s3n4o5p6-q7r8-9s0t-u1v2-w3x4y5z6a7b8", "title": "品川区の工事実績情報（コリンズデータ）", "dataset_id": "crtc_corins", "dataset_title": "工事実績情報（コリンズデータ）", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "t4o5p6q7-r8s9-0t1u-v2w3-x4y5z6a7b8c9", "title": "品川区の自然災害伝承碑", "dataset_id": "ndm", "dataset_title": "自然災害伝承碑", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "u5p6q7r8-s9t0-1u2v-w3x4-y5z6a7b8c9d0", "title": "品川区の災害緊急撮影（斜め写真）20250806", "dataset_id": "psc_20250806", "dataset_title": "令和7年8月6日からの低気圧と前線による大雨（斜め写真）", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "v6q7r8s9-t0u1-2v3w-x4y5-z6a7b8c9d0e1", "title": "品川区の災害緊急撮影（斜め写真）20240921", "dataset_id": "psc_20240921", "dataset_title": "令和6年9月21日能登地方大雨災害（斜め写真）", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "w7r8s9t0-u1v2-3w4x-y5z6-a7b8c9d0e1f2", "title": "品川区の係留施設", "dataset_id": "cyport", "dataset_title": "係留施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "x8s9t0u1-v2w3-4x5y-z6a7-b8c9d0e1f2g3", "title": "品川区のカメラ情報", "dataset_id": "dobox_camera", "dataset_title": "カメラ情報", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "y9t0u1v2-w3x4-5y6z-a7b8-c9d0e1f2g3h4", "title": "品川区の要素技術情報", "dataset_id": "sample_tech", "dataset_title": "要素技術情報", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "z0u1v2w3-x4y5-6z7a-b8c9-d0e1f2g3h4i5", "title": "品川区の工事図面データ", "dataset_id": "nxc_drawings", "dataset_title": "工事図面データ", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "a1v2w3x4-y5z6-7a8b-c9d0-e1f2g3h4i5j6", "title": "品川区のインフラみらいマップ", "dataset_id": "imm_imm", "dataset_title": "インフラみらいマップ", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "b2w3x4y5-z6a7-8b9c-d0e1-f2g3h4i5j6k7", "title": "品川区の行政区域データ", "dataset_id": "dpf_administrations_areas", "dataset_title": "行政区域データ", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "c3x4y5z6-a7b8-9c0d-e1f2-g3h4i5j6k7l8", "title": "品川区のMMSによる三次元点群データ等", "dataset_id": "mms_mms", "dataset_title": "走行経路の概要", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "d4y5z6a7-b8c9-0d1e-f2g3-h4i5j6k7l8m9", "title": "品川区の令和2年国勢調査", "dataset_id": "dpf_population_data", "dataset_title": "令和2年国勢調査", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "e5z6a7b8-c9d0-1e2f-g3h4-i5j6k7l8m9n0", "title": "品川区の都市QOL都市圏", "dataset_id": "qol_mma", "dataset_title": "都市QOL都市圏", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "f6a7b8c9-d0e1-2f3g-h4i5-j6k7l8m9n0o1", "title": "品川区の都市QOL都道府県", "dataset_id": "qol_pref", "dataset_title": "都市QOL都道府県", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "g7b8c9d0-e1f2-3g4h-i5j6-k7l8m9n0o1p2", "title": "品川区の砂防施設", "dataset_id": "kkd_sabo", "dataset_title": "砂防施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "h8c9d0e1-f2g3-4h5i-j6k7-l8m9n0o1p2q3", "title": "品川区の急傾斜地崩壊防止施設", "dataset_id": "kkd_sslopes", "dataset_title": "急傾斜地崩壊防止施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "i9d0e1f2-g3h4-5i6j-k7l8-m9n0o1p2q3r4", "title": "品川区の排水機場", "dataset_id": "kkd_dps", "dataset_title": "排水機場", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "j0e1f2g3-h4i5-6j7k-l8m9-n0o1p2q3r4s5", "title": "品川区の水門・堰", "dataset_id": "kkd_wgate", "dataset_title": "水門・堰", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "k1f2g3h4-i5j6-7k8l-m9n0-o1p2q3r4s5t6", "title": "品川区の樋門・樋管", "dataset_id": "kkd_sgate", "dataset_title": "樋門・樋管", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "l2g3h4i5-j6k7-8l9m-n0o1-p2q3r4s5t6u7", "title": "品川区の地すべり防止施設", "dataset_id": "kkd_kandslide", "dataset_title": "地すべり防止施設", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}},
+{"id": "m3h4i5j6-k7l8-9m0n-o1p2-q3r4s5t6u7v8", "title": "品川区の重要文化財", "dataset_id": "jyubunpc_shnw", "dataset_title": "重要文化財", "latitude": 35.60333333333333, "longitude": 139.7419444444444, "metadata": {"DPF:completion_datetime": null, "DPF:year": null}}
+        ];
+        // ▲▲▲ データ貼り付けここまで ▲▲▲
+
+        // 1. 地図の初期化
+        var map = L.map('mapid', { zoomControl: false }).setView([35.609, 139.730], 13);
+        
+        // ズームコントロールを左上に配置（デフォルトだと隠れることがあるため）
+        L.control.zoom({ position: 'topleft' }).addTo(map);
+        L.control.scale({ imperial: false, metric: true, position: 'bottomleft' }).addTo(map);
+
+        // 背景地図
+        L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'
+        }).addTo(map);
+
+        // 2. 品川区の境界線表示
+        fetch('https://raw.githubusercontent.com/niiyz/JapanCityGeoJson/master/geojson/13109.json')
+            .then(res => res.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: { color: '#0033ff', weight: 3, opacity: 0.6, fillColor: '#0033ff', fillOpacity: 0.05 }
+                }).addTo(map);
+            });
+
+        // 3. マーカーとクリックイベントの設定
+        var overlayMaps = {};
+        var datasetGroups = {};
+        var bounds = [];
+
+        shinagawa_data.forEach(function(item) {
+            if (!datasetGroups[item.dataset_id]) {
+                var group = L.markerClusterGroup();
+                datasetGroups[item.dataset_id] = group;
+                overlayMaps[`${item.dataset_title} (${item.dataset_id})`] = group;
+                map.addLayer(group);
+            }
+
+            if (item.latitude && item.longitude) {
+                var marker = L.marker([item.latitude, item.longitude]);
+
+                // ★★★ ここがクリック時の処理 ★★★
+                marker.on('click', function(e) {
+                    // サイドバーのHTMLを書き換える関数を呼び出す
+                    updateSidebar(item);
+                });
+
+                datasetGroups[item.dataset_id].addLayer(marker);
+                bounds.push([item.latitude, item.longitude]);
+            }
+        });
+
+        // 4. サイドバーを更新する関数
+        function updateSidebar(item) {
+            var sidebar = document.getElementById('info-content');
+            
+            // テーブルの行を作成
+            var metaRows = '';
+            if (item.metadata) {
+                for (var key in item.metadata) {
+                    metaRows += `<tr><th>${key}</th><td>${item.metadata[key]}</td></tr>`;
+                }
+            }
+
+            // HTMLを組み立てて表示
+            var html = `
+                <div style="padding-bottom:10px; border-bottom:1px solid #ccc; margin-bottom:15px;">
+                    <small style="color:#0078A8; font-weight:bold;">${item.dataset_title}</small>
+                    <h2 style="margin:5px 0;">${item.title}</h2>
+                </div>
+                
+                <table class="meta-table">
+                    <tr><th>ID</th><td>${item.id}</td></tr>
+                    <tr><th>緯度</th><td>${item.latitude}</td></tr>
+                    <tr><th>経度</th><td>${item.longitude}</td></tr>
+                    ${metaRows}
+                </table>
+            `;
+            sidebar.innerHTML = html;
+        }
+
+        // レイヤーコントロール
+        L.control.layers(null, overlayMaps, { collapsed: true, position: 'topright' }).addTo(map);
+
+    </script>
+</body>
+</html>
